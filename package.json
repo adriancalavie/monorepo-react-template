@@ -31,7 +31,7 @@
     "prettier-plugin-tailwindcss": "0.8.1",
     "sort-package-json": "4.0.0",
     "turbo": "^2.10.4",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "typescript-eslint": "^8.63.0",
     "zod-validation-error": "^4.0.0"
   },
