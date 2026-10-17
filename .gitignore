@@ -131,4 +131,8 @@ dist
 # wireit
 .wireit
 
-.turbo
+# Vite+ generated hook dispatcher (recreated by `vp config` / `vp hooks enable`)
+.vite-hooks/_
+
+# Agent working state (plans, scratch)
+.hermes/

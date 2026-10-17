@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "check-types": "tsgo --noEmit",
-    "dev": "vite --host"
+    "build": "vp build",
+    "check-types": "tsc --noEmit",
+    "dev": "vp dev --host"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.17",
@@ -24,7 +24,8 @@
     "@vitejs/plugin-react": "6.1.2",
     "lightningcss": "1.33.0",
     "tailwindcss": "4.3.3",
-    "vite": "8.3.4",
-    "vite-plugin-mkcert": "2.1.0"
+    "vite": "catalog:",
+    "vite-plugin-mkcert": "2.1.0",
+    "vite-plus": "catalog:"
   }
 }

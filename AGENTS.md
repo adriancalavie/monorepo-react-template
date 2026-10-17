@@ -7,7 +7,9 @@ monorepo-react-template/
 ├── .github/
 │   └── renovate.json          # Renovate config (auto-merge, squash)
 ├── .zed/
-│   └── settings.json          # Zed: Prettier formatter, ESLint on format
+│   └── settings.json          # Zed: oxfmt formatter + oxc fix actions
+├── .vite-hooks/
+│   └── pre-commit             # Vite+ project hook — runs `vp staged`
 ├── apps/
 │   ├── server/                # Bun HTTP server (Bun.serve routes API)
 │   │   ├── src/
@@ -37,69 +39,81 @@ monorepo-react-template/
 ├── .editorconfig
 ├── .gitattributes
 ├── .gitignore
-├── .prettierignore
-├── .prettierrc
 ├── AGENTS.md
-├── eslint.config.js
-├── lefthook.yml
-├── package.json               # Root — workspaces, shared devDeps, turbo scripts
-├── turbo.json                 # Turbo task definitions
+├── package.json               # Root — workspaces, shared devDeps, vp run scripts
+├── vite.config.ts             # Root — Vite+ lint, fmt, staged, and task config
 └── README.md
 ```
 
 ## Tech Stack & Decisions
 
-| Concern                | Choice                                                | Rationale                                                                                                                       |
-| ---------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **Runtime**            | Bun 1.3                                               | Fast JS runtime, built-in TS support, `Bun.serve` routes API                                                                    |
-| **Monorepo**           | Turborepo + Bun workspaces                            | `apps/*`, `packages/*` — turbo for task orchestration, bun for package management                                               |
-| **Frontend**           | React 19                                              | Latest stable                                                                                                                   |
-| **React Compiler**     | `eslint-plugin-react-hooks` (recommended preset)      | Compiler-powered lint rules for auto-memoization, merged from the now-deprecated `eslint-plugin-react-compiler`                 |
-| **Routing**            | TanStack Router (file-based)                          | Auto code-splitting, type-safe routes, `validateSearch` with Zod                                                                |
-| **Styling**            | Tailwind CSS v4                                       | `@tailwindcss/vite` plugin, `@import "tailwindcss"` in CSS, no config file                                                      |
-| **Dark mode**          | `color-scheme: light dark` in CSS                     | Auto dark mode via OS preference — no JS toggle                                                                                 |
-| **TypeScript**         | TS 6.0 (stable) + `@typescript/native-preview` (tsgo) | Dual-track: TS6 for stability, TS7 native preview (`tsgo`) for faster type-checking                                             |
-| **Validation**         | Zod                                                   | Shared schemas in `packages/shared` used by both server and web                                                                 |
-| **Linting**            | ESLint 9 flat config                                  | `typescript-eslint`, `eslint-plugin-perfectionist` (natural sort, object-sort off for TanStack), React + hooks + compiler rules |
-| **Formatting**         | Prettier                                              | `prettier-plugin-tailwindcss`, `prettier-plugin-packagejson`                                                                    |
-| **Git hooks**          | Lefthook                                              | Pre-commit: format, lint, type-check (parallel)                                                                                 |
-| **Dependency updates** | Renovate                                              | Auto-approve + auto-merge (squash), grouped React types                                                                         |
-| **HTTPS (dev)**        | `vite-plugin-mkcert`                                  | Local HTTPS via mkcert (source: "coding")                                                                                       |
-| **CSS processing**     | Lightning CSS                                         | Via Vite (configured as dependency, used automatically)                                                                         |
-| **Dev proxy**          | Vite server proxy                                     | `/api` → `localhost:3001`                                                                                                       |
-| **Editor**             | Zed                                                   | Prettier formatter, ESLint fix on format for JS/TS/TSX                                                                          |
+| Concern                | Choice                                         | Rationale                                                                                                    |
+| ---------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Runtime**            | Bun 1.3                                        | Fast JS runtime, built-in TS support, `Bun.serve` routes API                                                 |
+| **Monorepo**           | Bun workspaces + Vite Task                     | `apps/*`, `packages/*` — `vp run -r` for task orchestration, bun for package management                      |
+| **Frontend**           | React 19                                       | Latest stable                                                                                                |
+| **React Compiler**     | Oxlint `react` plugin (compiler-powered rules) | Oxc React plugin supplies the hooks + compiler rules (refs, purity, set-state-in-effect, ...)                |
+| **Routing**            | TanStack Router (file-based)                   | Auto code-splitting, type-safe routes, `validateSearch` with Zod                                             |
+| **Styling**            | Tailwind CSS v4                                | `@tailwindcss/vite` plugin, `@import "tailwindcss"` in CSS, no config file                                   |
+| **Dark mode**          | `color-scheme: light dark` in CSS              | Auto dark mode via OS preference — no JS toggle                                                              |
+| **TypeScript**         | TS 7.0 (native compiler)                       | Single native `tsc`; replaces the TS6 + `tsgo` dual-track                                                    |
+| **Validation**         | Zod                                            | Shared schemas in `packages/shared` used by both server and web                                              |
+| **Linting**            | Oxlint via `vp lint` / `vp check`              | Rules in the root `vite.config.ts` `lint` block; `eslint-plugin-perfectionist` loaded as an Oxlint JS plugin |
+| **Formatting**         | Oxfmt via `vp fmt` / `vp check`                | Options in the root `vite.config.ts` `fmt` block; package.json + Tailwind class sorting built in             |
+| **Static checks**      | `vp check`                                     | Format + lint + type-check (tsgolint) in one command, used by the pre-commit hook                            |
+| **Git hooks**          | Vite+ native hooks                             | `.vite-hooks/pre-commit` runs `vp staged`, driven by the `staged` block in `vite.config.ts`                  |
+| **Dependency updates** | Renovate                                       | Auto-approve + auto-merge (squash), grouped React types                                                      |
+| **HTTPS (dev)**        | `vite-plugin-mkcert`                           | Local HTTPS via mkcert (source: "coding")                                                                    |
+| **CSS processing**     | Lightning CSS                                  | Via Vite (configured as dependency, used automatically)                                                      |
+| **Dev proxy**          | Vite server proxy                              | `/api` → `localhost:3001`                                                                                    |
+| **Editor**             | Zed                                            | Oxfmt formatter + `source.fixAll.oxc` for JS/TS/TSX (oxc-zed extension)                                      |
 
 ## Key Config Details
 
-### ESLint
+### Linting (Oxlint)
 
-- Flat config (`eslint.config.js`)
-- `perfectionist/sort-objects` is **disabled** — conflicts with TanStack Router's type inference chain (`validateSearch` must precede `loaderDeps`/`loader`)
-- React rules only apply to `apps/web/**/*.{ts,tsx}`
-- Type-checked rules disabled for `.js`/`.mjs`/`.cjs` files
-- Uses `reactHooks.configs.flat.recommended` which includes all compiler-powered rules (refs, set-state-in-effect, set-state-in-render, purity, immutability, etc.)
+- Configured in the root `vite.config.ts` `lint` block — there is no `eslint.config.js`
+- Plugins: `oxc`, `typescript`, `unicorn`, plus `react` for `apps/web`
+- `eslint-plugin-perfectionist` is loaded as a JS plugin, natural-sort ordering, with most sort rules as errors
+- `perfectionist/sort-objects` is **not** enabled — it conflicts with TanStack Router's type inference chain (`validateSearch` must precede `loaderDeps`/`loader`)
+- React rules apply only to `apps/web/**/*.{ts,tsx}` (via a `lint.overrides` entry)
+- Type-aware rules are disabled for `.js`/`.mjs`/`.cjs` files (via a `lint.overrides` entry)
+- Compiler-powered React rules (`react/refs`, `react/set-state-in-effect`, `react/set-state-in-render`, `react/purity`, `react/immutability`, ...) come from Oxlint's React plugin
+- `lint.options.typeAware` and `lint.options.typeCheck` are on, so `vp check` also type-checks
 
-### Turbo
+### Formatting (Oxfmt)
 
-- `build` depends on `^build` (topological), outputs to `dist/**`
-- `check-types` depends on `^check-types`
-- `dev` is persistent (no cache)
+- Configured in the root `vite.config.ts` `fmt` block — there is no `.prettierrc`
+- `printWidth: 100`, double quotes, semicolons, `trailingComma: "all"`
+- `sortPackageJson` and `sortTailwindcss` are on
+- `ignorePatterns: [".zed/", ".hermes/"]` — `.zed/settings.json` is JSONC, and `.hermes/` holds agent working state
 
-### Lefthook
+### Task running (Vite Task)
 
-- Pre-commit only, parallel jobs
-- Format → lint → type-check
-- `stage_fixed: true` so formatting is auto-staged
+- `vp run -r <task>` runs a task in every workspace package, in dependency order derived from each package's `package.json` dependencies
+- Root scripts: `build` and `check-types` pass `--cache`; `dev` passes `--parallel`
+- `package.json` scripts are **not** cached by default — `--cache` opts in per invocation
+- Cache lives in `node_modules/.vite/task-cache`; clear with `vp cache clean`
+- `run.cache.scripts: true` in the root `vite.config.ts` would default every script to cached, including `dev`, so caching stays opt-in per script instead
+- A task defined in `vite.config.ts` is cached by default; a same-named `package.json` script cannot coexist with it
+- `⊘ cache disabled` is printed for any task that isn't cached — there is no flag, log mode, or config setting that suppresses it, including an explicit `cache: false`. The only way it disappears is for the task not to exist, which is why `apps/server` declares no `build` script (it has no build step)
+
+### Git hooks (Vite+)
+
+- `.vite-hooks/pre-commit` (committed, executable) runs `vp staged`
+- The `staged` block in `vite.config.ts` maps `"*"` → `vp check --fix`
+- `vp hooks enable` installs the generated dispatcher under `.vite-hooks/_` and sets `core.hooksPath` (gitignored, per-clone)
+- No lefthook/husky config
 
 ## Scripts
 
-| Script                | Effect                                       |
-| --------------------- | -------------------------------------------- |
-| `bun run dev`         | Turbo dev (all apps)                         |
-| `bun run build`       | Turbo build (all apps)                       |
-| `bun run check-types` | Turbo type-check (all apps)                  |
-| `bun run lint`        | ESLint root check                            |
-| `bun run prepare`     | Install lefthook (skipped in CI via `is-ci`) |
+| Script                | Effect                                                        |
+| --------------------- | ------------------------------------------------------------- |
+| `bun run dev`         | `vp run -r --parallel dev` (web + server)                     |
+| `bun run build`       | `vp run -r --cache build` (all apps)                          |
+| `bun run check-types` | `vp run -r --cache check-types` (all apps, `tsc` per package) |
+| `bun run lint`        | `vp lint .` (root)                                            |
+| `bun run prepare`     | Install the Vite+ hook dispatcher (skipped in CI via `is-ci`) |
 
 ## Getting Started
 
@@ -111,3 +125,31 @@ When starting a new project from this template:
 4. Add your own Zod schemas in `packages/shared/src/schemas/`
 5. Add your own API routes in `apps/server/src/index.ts`
 6. Update `.github/renovate.json` assignees if desired
+
+<!--VITE PLUS START-->
+
+# Using Vite+, the Unified Toolchain for the Web
+
+This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, and it invokes Vite through `vp dev` and `vp build`. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
+
+Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.dev/guide/.
+
+## Built-in Commands vs Scripts
+
+`vp <name>` runs a built-in command. `vp run <name>` runs a `package.json` script or a `vite.config.ts` task. Scripts cannot overwrite built-ins, so `vp dev` and `vp run dev` may do different things. Check `package.json` and `vite.config.ts` first, and run `vp run <name>` when the project defines a script or task with that name.
+
+## Tool Versions
+
+Run `vp toolchain` to show versions and relationships in the active Vite+
+release. Add a tool name to select part of the graph. For example, run
+`vp toolchain vite`. Use `--global` to ignore the local `vite-plus` package. Use
+`vp why <package>` to show the package-manager dependency graph.
+
+## Review Checklist
+
+- [ ] Run `vp install` after pulling remote changes and before getting started.
+- [ ] Run `vp check` and `vp test` to format, lint, type check and test changes.
+- [ ] Check if there are `vite.config.ts` tasks or `package.json` scripts necessary for validation, run via `vp run <script>`.
+- [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
+
+<!--VITE PLUS END-->

@@ -1,6 +1,6 @@
 # Monorepo React Template
 
-A Turborepo + Bun monorepo template with React 19, TanStack Router, Tailwind CSS v4, and a Bun HTTP server.
+A Bun workspaces monorepo template with React 19, TanStack Router, Tailwind CSS v4, a Bun HTTP server, and the Vite+ (`vp`) toolchain.
 
 ## Getting Started
 

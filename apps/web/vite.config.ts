@@ -1,7 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, lazyPlugins } from "vite-plus";
 import mkcert from "vite-plugin-mkcert";
 
 export default defineConfig({
@@ -17,7 +17,7 @@ export default defineConfig({
   optimizeDeps: {
     include: ["react/jsx-runtime"],
   },
-  plugins: [
+  plugins: lazyPlugins(() => [
     tanstackRouter({
       autoCodeSplitting: true,
       quoteStyle: "double",
@@ -29,7 +29,7 @@ export default defineConfig({
       source: "coding",
     }),
     tailwindcss(),
-  ],
+  ]),
   resolve: {
     tsconfigPaths: true,
   },
